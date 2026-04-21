@@ -1,6 +1,11 @@
 import type { Request, Response } from "express";
 import type { TodoService } from "../services/todoService";
 
+function paramId(req: Request): string {
+  const raw = req.params.id;
+  return Array.isArray(raw) ? raw[0] : raw;
+}
+
 export function createTodoHandlers(service: TodoService) {
   function createTodo(req: Request, res: Response): void {
     const todo = service.createTodo(req.body ?? {});
@@ -13,19 +18,19 @@ export function createTodoHandlers(service: TodoService) {
   }
 
   function getTodoById(req: Request, res: Response): void {
-    const { id } = req.params;
+    const id = paramId(req);
     const todo = service.getTodoById(id);
     res.json(todo);
   }
 
   function updateTodo(req: Request, res: Response): void {
-    const { id } = req.params;
+    const id = paramId(req);
     const todo = service.updateTodo(id, req.body ?? {});
     res.json(todo);
   }
 
   function deleteTodo(req: Request, res: Response): void {
-    const { id } = req.params;
+    const id = paramId(req);
     service.deleteTodo(id);
     res.status(204).send();
   }
@@ -35,6 +40,6 @@ export function createTodoHandlers(service: TodoService) {
     listTodos,
     getTodoById,
     updateTodo,
-    deleteTodo
+    deleteTodo,
   };
 }

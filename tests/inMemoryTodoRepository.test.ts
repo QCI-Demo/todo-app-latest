@@ -4,7 +4,7 @@ import {
   findAll,
   findById,
   remove,
-  update
+  update,
 } from "../src/repository/inMemoryTodoRepository";
 import type { Todo } from "../src/models/todo";
 
@@ -15,7 +15,7 @@ function sampleTodo(id: string): Todo {
     title: "T",
     completed: false,
     createdAt: t,
-    updatedAt: t
+    updatedAt: t,
   };
 }
 
@@ -39,10 +39,24 @@ describe("inMemoryTodoRepository", () => {
   });
 
   it("update returns undefined when id is missing", () => {
-    expect(update("missing", sampleTodo("missing"))).toBeUndefined();
+    expect(update("missing", { title: "x" })).toBeUndefined();
   });
 
   it("remove returns false when id is missing", () => {
     expect(remove("nope")).toBe(false);
+  });
+
+  it("update uses patch.updatedAt when provided", () => {
+    const t: Todo = {
+      id: "1",
+      title: "a",
+      completed: false,
+      createdAt: new Date("2020-01-01"),
+      updatedAt: new Date("2020-01-02"),
+    };
+    add(t);
+    const fixed = new Date("2025-06-01T00:00:00.000Z");
+    const next = update("1", { title: "b", updatedAt: fixed });
+    expect(next?.updatedAt).toEqual(fixed);
   });
 });

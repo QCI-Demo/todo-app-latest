@@ -8,7 +8,7 @@ describe("todoController", () => {
     getTodos: jest.fn(),
     getTodoById: jest.fn(),
     updateTodo: jest.fn(),
-    deleteTodo: jest.fn()
+    deleteTodo: jest.fn(),
   } as unknown as jest.Mocked<TodoService>;
 
   const handlers = createTodoHandlers(service);
@@ -23,7 +23,7 @@ describe("todoController", () => {
       title: "t",
       completed: false,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     });
     const req = { body: undefined } as unknown as Request;
     const res = { status: jest.fn().mockReturnThis(), json: jest.fn() } as unknown as Response;
@@ -40,16 +40,32 @@ describe("todoController", () => {
       title: "t",
       completed: false,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     });
     const req = {
       params: { id: "1" },
-      body: undefined
+      body: undefined,
     } as unknown as Request;
     const res = { json: jest.fn() } as unknown as Response;
 
     handlers.updateTodo(req, res);
 
     expect(service.updateTodo).toHaveBeenCalledWith("1", {});
+  });
+
+  it("getTodoById uses first element when params.id is an array", () => {
+    service.getTodoById.mockReturnValue({
+      id: "from-array",
+      title: "T",
+      completed: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const req = { params: { id: ["from-array"] } } as unknown as Request;
+    const res = { json: jest.fn() } as unknown as Response;
+
+    handlers.getTodoById(req, res);
+
+    expect(service.getTodoById).toHaveBeenCalledWith("from-array");
   });
 });

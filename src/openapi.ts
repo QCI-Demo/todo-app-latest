@@ -175,7 +175,8 @@ export const openApiDocument = {
         required: ["title"],
         properties: {
           title: { type: "string" },
-          description: { type: "string" }
+          description: { type: "string" },
+          completed: { type: "boolean" }
         }
       },
       UpdateTodoRequest: {

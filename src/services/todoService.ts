@@ -1,43 +1,51 @@
 import createError from "http-errors";
 import { randomUUID } from "node:crypto";
 import type { CreateTodoPayload, Todo, UpdateTodoPayload } from "../models/todo";
-import type * as TodoRepository from "../repository/inMemoryTodoRepository";
 
-export type TodoRepositoryApi = {
-  add: typeof TodoRepository.add;
-  findAll: typeof TodoRepository.findAll;
-  findById: typeof TodoRepository.findById;
-  update: typeof TodoRepository.update;
-  remove: typeof TodoRepository.remove;
-};
+export interface TodoRepository {
+  add(todo: Todo): void;
+  findAll(): Todo[];
+  findById(id: string): Todo | undefined;
+  update(id: string, patch: Partial<Todo>): Todo | undefined;
+  remove(id: string): boolean;
+}
 
-export function createTodoService(repository: TodoRepositoryApi) {
-  function createTodo(payload: CreateTodoPayload): Todo {
-    const title = payload.title?.trim();
-    if (!title) {
-      throw createError(400, "Title is required");
+export function createTodoService(repo: TodoRepository) {
+  function assertNonEmptyTitle(title: string | undefined, fieldName: string): string {
+    if (title === undefined) {
+      throw createError(400, `${fieldName} is required`);
     }
+    const trimmed = title.trim();
+    if (!trimmed) {
+      throw createError(400, `${fieldName} cannot be empty`);
+    }
+    return trimmed;
+  }
 
+  function createTodo(payload: CreateTodoPayload): Todo {
+    const title = assertNonEmptyTitle(payload.title, "Title");
     const now = new Date();
     const todo: Todo = {
       id: randomUUID(),
       title,
-      description: payload.description?.trim() || undefined,
-      completed: false,
+      description:
+        payload.description === undefined
+          ? undefined
+          : payload.description.trim() || undefined,
+      completed: payload.completed ?? false,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
     };
-
-    repository.add(todo);
+    repo.add(todo);
     return todo;
   }
 
   function getTodos(): Todo[] {
-    return repository.findAll();
+    return repo.findAll();
   }
 
   function getTodoById(id: string): Todo {
-    const todo = repository.findById(id);
+    const todo = repo.findById(id);
     if (!todo) {
       throw createError(404, "Todo not found");
     }
@@ -45,40 +53,38 @@ export function createTodoService(repository: TodoRepositoryApi) {
   }
 
   function updateTodo(id: string, payload: UpdateTodoPayload): Todo {
-    const existing = repository.findById(id);
+    const existing = repo.findById(id);
     if (!existing) {
       throw createError(404, "Todo not found");
     }
 
+    let title = existing.title;
     if (payload.title !== undefined) {
-      const title = payload.title.trim();
-      if (!title) {
-        throw createError(400, "Title cannot be empty");
-      }
+      title = assertNonEmptyTitle(payload.title, "Title");
     }
 
-    const updatedAt = new Date();
-    const next: Todo = {
-      ...existing,
-      title: payload.title !== undefined ? payload.title.trim() : existing.title,
-      description:
-        payload.description !== undefined
-          ? payload.description.trim() || undefined
-          : existing.description,
-      completed:
-        payload.completed !== undefined ? payload.completed : existing.completed,
-      updatedAt
-    };
+    const description =
+      payload.description === undefined
+        ? existing.description
+        : payload.description.trim() || undefined;
 
-    const saved = repository.update(id, next);
-    if (!saved) {
+    const completed =
+      payload.completed === undefined ? existing.completed : payload.completed;
+
+    const updated = repo.update(id, {
+      title,
+      description,
+      completed,
+      updatedAt: new Date(),
+    });
+    if (!updated) {
       throw createError(404, "Todo not found");
     }
-    return saved;
+    return updated;
   }
 
   function deleteTodo(id: string): void {
-    const removed = repository.remove(id);
+    const removed = repo.remove(id);
     if (!removed) {
       throw createError(404, "Todo not found");
     }
@@ -89,7 +95,7 @@ export function createTodoService(repository: TodoRepositoryApi) {
     getTodos,
     getTodoById,
     updateTodo,
-    deleteTodo
+    deleteTodo,
   };
 }
 

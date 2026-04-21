@@ -10,6 +10,7 @@ export interface Todo {
 export type CreateTodoPayload = {
   title: string;
   description?: string;
+  completed?: boolean;
 };
 
 export type UpdateTodoPayload = {

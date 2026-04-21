@@ -18,7 +18,7 @@ describe("Todo API", () => {
       title: expect.any(String),
       completed: expect.any(Boolean),
       createdAt: expect.any(String),
-      updatedAt: expect.any(String)
+      updatedAt: expect.any(String),
     });
     if (body.description !== undefined) {
       expect(typeof body.description).toBe("string");
@@ -35,14 +35,26 @@ describe("Todo API", () => {
     expect(res.body).toMatchObject({
       title: "First",
       description: "Note",
-      completed: false
+      completed: false,
     });
+  });
+
+  it("POST /todos accepts completed", async () => {
+    const res = await request(app)
+      .post("/todos")
+      .send({ title: "With flag", completed: true })
+      .expect(201);
+    expect(res.body).toMatchObject({ completed: true });
   });
 
   it("POST /todos returns 400 for invalid title", async () => {
     const res = await request(app).post("/todos").send({ title: "" }).expect(400);
+    expect(res.body).toEqual({ error: "Title cannot be empty" });
+  });
 
-    expect(res.body).toEqual({ error: "Title is required" });
+  it("POST /todos returns 400 for whitespace-only title", async () => {
+    const res = await request(app).post("/todos").send({ title: "   " }).expect(400);
+    expect(res.body).toEqual({ error: "Title cannot be empty" });
   });
 
   it("GET /todos lists todos", async () => {
@@ -89,7 +101,7 @@ describe("Todo API", () => {
     expect(res.body).toMatchObject({
       id,
       title: "New",
-      completed: true
+      completed: true,
     });
   });
 
@@ -105,6 +117,14 @@ describe("Todo API", () => {
       .send({ title: "   " })
       .expect(400);
     expect(res.body).toEqual({ error: "Title cannot be empty" });
+  });
+
+  it("PUT /todos/:id returns 404 when missing", async () => {
+    const res = await request(app)
+      .put("/todos/00000000-0000-4000-8000-000000000000")
+      .send({ title: "X" })
+      .expect(404);
+    expect(res.body).toEqual({ error: "Todo not found" });
   });
 
   it("DELETE /todos/:id removes a todo", async () => {

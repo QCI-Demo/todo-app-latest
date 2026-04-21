@@ -14,12 +14,17 @@ export function findById(id: string): Todo | undefined {
   return store.get(id);
 }
 
-export function update(id: string, todo: Todo): Todo | undefined {
-  if (!store.has(id)) {
-    return undefined;
-  }
-  store.set(id, todo);
-  return todo;
+export function update(id: string, patch: Partial<Todo>): Todo | undefined {
+  const existing = store.get(id);
+  if (!existing) return undefined;
+  const next: Todo = {
+    ...existing,
+    ...patch,
+    id: existing.id,
+    updatedAt: patch.updatedAt ?? new Date(),
+  };
+  store.set(id, next);
+  return next;
 }
 
 export function remove(id: string): boolean {

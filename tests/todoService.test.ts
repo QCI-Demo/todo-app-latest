@@ -1,8 +1,5 @@
 import { isHttpError } from "http-errors";
-import {
-  createTodoService,
-  type TodoRepositoryApi
-} from "../src/services/todoService";
+import { createTodoService, type TodoRepository } from "../src/services/todoService";
 import type { Todo } from "../src/models/todo";
 
 function makeTodo(overrides: Partial<Todo> = {}): Todo {
@@ -13,12 +10,12 @@ function makeTodo(overrides: Partial<Todo> = {}): Todo {
     completed: false,
     createdAt: now,
     updatedAt: now,
-    ...overrides
+    ...overrides,
   };
 }
 
 describe("todoService", () => {
-  let repo: jest.Mocked<TodoRepositoryApi>;
+  let repo: jest.Mocked<TodoRepository>;
   let service: ReturnType<typeof createTodoService>;
 
   beforeEach(() => {
@@ -27,7 +24,7 @@ describe("todoService", () => {
       findAll: jest.fn(),
       findById: jest.fn(),
       update: jest.fn(),
-      remove: jest.fn()
+      remove: jest.fn(),
     };
     service = createTodoService(repo);
   });
@@ -41,10 +38,8 @@ describe("todoService", () => {
       expect(repo.add).toHaveBeenCalledWith(todo);
     });
 
-    it("throws 400 when title is missing", () => {
-      expect(() => service.createTodo({ title: "" })).toThrow(
-        "Title is required"
-      );
+    it("throws 400 when title is empty string", () => {
+      expect(() => service.createTodo({ title: "" })).toThrow("Title cannot be empty");
       expect(repo.add).not.toHaveBeenCalled();
     });
 
@@ -55,15 +50,13 @@ describe("todoService", () => {
     });
 
     it("throws 400 when title is whitespace only", () => {
-      expect(() => service.createTodo({ title: "   " })).toThrow(
-        "Title is required"
-      );
+      expect(() => service.createTodo({ title: "   " })).toThrow("Title cannot be empty");
     });
 
     it("stores optional description trimmed", () => {
       const todo = service.createTodo({
         title: "A",
-        description: "  notes  "
+        description: "  notes  ",
       });
       expect(todo.description).toBe("notes");
     });
@@ -71,6 +64,11 @@ describe("todoService", () => {
     it("omits description when empty after trim", () => {
       const todo = service.createTodo({ title: "A", description: "   " });
       expect(todo.description).toBeUndefined();
+    });
+
+    it("honors completed on create", () => {
+      const todo = service.createTodo({ title: "A", completed: true });
+      expect(todo.completed).toBe(true);
     });
   });
 
@@ -99,7 +97,7 @@ describe("todoService", () => {
     it("merges fields and updates timestamps", () => {
       const existing = makeTodo({ title: "Old" });
       repo.findById.mockReturnValue(existing);
-      repo.update.mockImplementation((_id, t) => t);
+      repo.update.mockImplementation((_id, t) => t as Todo);
 
       const result = service.updateTodo("id-1", { title: " New " });
       expect(result.title).toBe("New");
@@ -112,7 +110,7 @@ describe("todoService", () => {
     it("updates description and clears when blank", () => {
       const existing = makeTodo({ description: "old" });
       repo.findById.mockReturnValue(existing);
-      repo.update.mockImplementation((_id, t) => t);
+      repo.update.mockImplementation((_id, t) => t as Todo);
 
       const cleared = service.updateTodo("id-1", { description: "   " });
       expect(cleared.description).toBeUndefined();
@@ -127,10 +125,10 @@ describe("todoService", () => {
       const existing = makeTodo({
         title: "Keep",
         completed: false,
-        description: "note"
+        description: "note",
       });
       repo.findById.mockReturnValue(existing);
-      repo.update.mockImplementation((_id, t) => t);
+      repo.update.mockImplementation((_id, t) => t as Todo);
 
       const result = service.updateTodo("id-1", { completed: true });
       expect(result.title).toBe("Keep");
