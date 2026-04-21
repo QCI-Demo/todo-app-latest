@@ -4,7 +4,7 @@ import { createTodoService } from "./services/todoService";
 import * as inMemoryTodoRepository from "./repository/inMemoryTodoRepository";
 import { createTodoRouter } from "./routes/todoRoutes";
 import { errorHandler } from "./middleware/errorHandler";
-import { openApiDocument } from "./openapi";
+import { swaggerSpec } from "./swagger/swaggerSpec";
 
 export function createApp() {
   const app = express();
@@ -14,7 +14,9 @@ export function createApp() {
   const todoService = createTodoService(inMemoryTodoRepository);
   app.use("/todos", createTodoRouter(todoService));
 
-  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
+  if (process.env.NODE_ENV !== "production") {
+    app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  }
 
   app.use(errorHandler);
 
