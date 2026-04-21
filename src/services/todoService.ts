@@ -1,28 +1,30 @@
 import createError from "http-errors";
 import { randomUUID } from "node:crypto";
 import type { CreateTodoPayload, Todo, UpdateTodoPayload } from "../models/todo";
+import type { ITodoRepository } from "../storage/ITodoRepository";
+import { RepositoryFactory } from "../storage/RepositoryFactory";
 
 export interface TodoRepository {
-  add(todo: Todo): void;
-  findAll(): Todo[];
-  findById(id: string): Todo | undefined;
-  update(id: string, patch: Partial<Todo>): Todo | undefined;
-  remove(id: string): boolean;
+  add(todo: Todo): Promise<Todo>;
+  findAll(): Promise<Todo[]>;
+  findById(id: string): Promise<Todo | undefined>;
+  update(id: string, patch: Partial<Todo>): Promise<Todo | undefined>;
+  remove(id: string): Promise<boolean>;
+}
+
+function assertNonEmptyTitle(title: string | undefined, fieldName: string): string {
+  if (title === undefined) {
+    throw createError(400, `${fieldName} is required`);
+  }
+  const trimmed = title.trim();
+  if (!trimmed) {
+    throw createError(400, `${fieldName} cannot be empty`);
+  }
+  return trimmed;
 }
 
 export function createTodoService(repo: TodoRepository) {
-  function assertNonEmptyTitle(title: string | undefined, fieldName: string): string {
-    if (title === undefined) {
-      throw createError(400, `${fieldName} is required`);
-    }
-    const trimmed = title.trim();
-    if (!trimmed) {
-      throw createError(400, `${fieldName} cannot be empty`);
-    }
-    return trimmed;
-  }
-
-  function createTodo(payload: CreateTodoPayload): Todo {
+  async function createTodo(payload: CreateTodoPayload): Promise<Todo> {
     const title = assertNonEmptyTitle(payload.title, "Title");
     const now = new Date();
     const todo: Todo = {
@@ -36,24 +38,23 @@ export function createTodoService(repo: TodoRepository) {
       createdAt: now,
       updatedAt: now,
     };
-    repo.add(todo);
-    return todo;
+    return repo.add(todo);
   }
 
-  function getTodos(): Todo[] {
+  async function getTodos(): Promise<Todo[]> {
     return repo.findAll();
   }
 
-  function getTodoById(id: string): Todo {
-    const todo = repo.findById(id);
+  async function getTodoById(id: string): Promise<Todo> {
+    const todo = await repo.findById(id);
     if (!todo) {
       throw createError(404, "Todo not found");
     }
     return todo;
   }
 
-  function updateTodo(id: string, payload: UpdateTodoPayload): Todo {
-    const existing = repo.findById(id);
+  async function updateTodo(id: string, payload: UpdateTodoPayload): Promise<Todo> {
+    const existing = await repo.findById(id);
     if (!existing) {
       throw createError(404, "Todo not found");
     }
@@ -71,7 +72,7 @@ export function createTodoService(repo: TodoRepository) {
     const completed =
       payload.completed === undefined ? existing.completed : payload.completed;
 
-    const updated = repo.update(id, {
+    const updated = await repo.update(id, {
       title,
       description,
       completed,
@@ -83,8 +84,8 @@ export function createTodoService(repo: TodoRepository) {
     return updated;
   }
 
-  function deleteTodo(id: string): void {
-    const removed = repo.remove(id);
+  async function deleteTodo(id: string): Promise<void> {
+    const removed = await repo.remove(id);
     if (!removed) {
       throw createError(404, "Todo not found");
     }
@@ -100,3 +101,7 @@ export function createTodoService(repo: TodoRepository) {
 }
 
 export type TodoService = ReturnType<typeof createTodoService>;
+
+export function getDefaultTodoService(): TodoService {
+  return createTodoService(RepositoryFactory.getRepository());
+}

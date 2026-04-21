@@ -17,8 +17,8 @@ describe("todoController", () => {
     jest.clearAllMocks();
   });
 
-  it("createTodo uses empty object when body is undefined", () => {
-    service.createTodo.mockReturnValue({
+  it("createTodo uses empty object when body is undefined", async () => {
+    service.createTodo.mockResolvedValue({
       id: "1",
       title: "t",
       completed: false,
@@ -28,14 +28,14 @@ describe("todoController", () => {
     const req = { body: undefined } as unknown as Request;
     const res = { status: jest.fn().mockReturnThis(), json: jest.fn() } as unknown as Response;
 
-    handlers.createTodo(req, res);
+    await handlers.createTodo(req, res);
 
     expect(service.createTodo).toHaveBeenCalledWith({});
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
-  it("updateTodo uses empty object when body is undefined", () => {
-    service.updateTodo.mockReturnValue({
+  it("updateTodo uses empty object when body is undefined", async () => {
+    service.updateTodo.mockResolvedValue({
       id: "1",
       title: "t",
       completed: false,
@@ -48,13 +48,13 @@ describe("todoController", () => {
     } as unknown as Request;
     const res = { json: jest.fn() } as unknown as Response;
 
-    handlers.updateTodo(req, res);
+    await handlers.updateTodo(req, res);
 
     expect(service.updateTodo).toHaveBeenCalledWith("1", {});
   });
 
-  it("getTodoById uses first element when params.id is an array", () => {
-    service.getTodoById.mockReturnValue({
+  it("getTodoById uses first element when params.id is an array", async () => {
+    service.getTodoById.mockResolvedValue({
       id: "from-array",
       title: "T",
       completed: false,
@@ -64,7 +64,7 @@ describe("todoController", () => {
     const req = { params: { id: ["from-array"] } } as unknown as Request;
     const res = { json: jest.fn() } as unknown as Response;
 
-    handlers.getTodoById(req, res);
+    await handlers.getTodoById(req, res);
 
     expect(service.getTodoById).toHaveBeenCalledWith("from-array");
   });

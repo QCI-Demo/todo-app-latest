@@ -9,7 +9,11 @@
     "dev": "tsx watch src/index.ts",
     "lint": "eslint . --ext .ts,.js",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\" \"*.{js,json,md}\"",
-    "test": "jest --coverage",
+    "test": "jest --coverage && npm run test:vitest",
+    "test:vitest": "vitest run tests/inMemoryRepo.test.ts tests/localProxyRepo.test.ts tests/todoApi.test.ts",
+    "test:api": "npm run test:api:memory && npm run test:api:proxy",
+    "test:api:memory": "STORAGE_MODE=IN_MEMORY vitest run tests/todoApi.test.ts",
+    "test:api:proxy": "STORAGE_MODE=LOCAL_PROXY vitest run tests/todoApi.test.ts",
     "test:coverage": "jest --coverage",
     "validate:openapi": "node scripts/validate-openapi.cjs"
   },
@@ -51,6 +55,7 @@
     "ts-jest": "^29.4.9",
     "ts-node": "^10.9.2",
     "tsx": "^4.19.2",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^2.1.8"
   }
 }

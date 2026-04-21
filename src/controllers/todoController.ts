@@ -34,8 +34,8 @@ export function createTodoHandlers(service: TodoService) {
    *             schema:
    *               $ref: '#/components/schemas/Error'
    */
-  function createTodo(req: Request, res: Response): void {
-    const todo = service.createTodo(req.body ?? {});
+  async function createTodo(req: Request, res: Response): Promise<void> {
+    const todo = await service.createTodo(req.body ?? {});
     res.status(201).json(todo);
   }
 
@@ -56,8 +56,8 @@ export function createTodoHandlers(service: TodoService) {
    *               items:
    *                 $ref: '#/components/schemas/Todo'
    */
-  function listTodos(_req: Request, res: Response): void {
-    const todos = service.getTodos();
+  async function listTodos(_req: Request, res: Response): Promise<void> {
+    const todos = await service.getTodos();
     res.json(todos);
   }
 
@@ -89,9 +89,9 @@ export function createTodoHandlers(service: TodoService) {
    *             schema:
    *               $ref: '#/components/schemas/Error'
    */
-  function getTodoById(req: Request, res: Response): void {
+  async function getTodoById(req: Request, res: Response): Promise<void> {
     const id = paramId(req);
-    const todo = service.getTodoById(id);
+    const todo = await service.getTodoById(id);
     res.json(todo);
   }
 
@@ -134,9 +134,9 @@ export function createTodoHandlers(service: TodoService) {
    *             schema:
    *               $ref: '#/components/schemas/Error'
    */
-  function updateTodo(req: Request, res: Response): void {
+  async function updateTodo(req: Request, res: Response): Promise<void> {
     const id = paramId(req);
-    const todo = service.updateTodo(id, req.body ?? {});
+    const todo = await service.updateTodo(id, req.body ?? {});
     res.json(todo);
   }
 
@@ -164,9 +164,9 @@ export function createTodoHandlers(service: TodoService) {
    *             schema:
    *               $ref: '#/components/schemas/Error'
    */
-  function deleteTodo(req: Request, res: Response): void {
+  async function deleteTodo(req: Request, res: Response): Promise<void> {
     const id = paramId(req);
-    service.deleteTodo(id);
+    await service.deleteTodo(id);
     res.status(204).send();
   }
 

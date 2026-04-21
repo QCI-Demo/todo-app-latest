@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import createError from "http-errors";
 import { errorHandler } from "../src/middleware/errorHandler";
 import { wrapRoute } from "../src/middleware/wrapRoute";
+import { StorageError } from "../src/errors/StorageError";
 
 describe("errorHandler", () => {
   it("sends JSON error for HttpError", () => {
@@ -35,6 +36,50 @@ describe("errorHandler", () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect((res as unknown as { json: jest.Mock }).json).toHaveBeenCalledWith({
       error: "Internal Server Error"
+    });
+  });
+
+  it("maps StorageError NETWORK_ERROR to 503", () => {
+    const res = {
+      headersSent: false,
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    } as unknown as Response;
+    const next = jest.fn() as NextFunction;
+
+    errorHandler(
+      new StorageError("unreachable", "NETWORK_ERROR"),
+      {} as Request,
+      res,
+      next
+    );
+
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect((res as unknown as { json: jest.Mock }).json).toHaveBeenCalledWith({
+      error: "unreachable",
+      code: "NETWORK_ERROR",
+    });
+  });
+
+  it("maps StorageError UPSTREAM_ERROR to 502", () => {
+    const res = {
+      headersSent: false,
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    } as unknown as Response;
+    const next = jest.fn() as NextFunction;
+
+    errorHandler(
+      new StorageError("bad gateway", "UPSTREAM_ERROR"),
+      {} as Request,
+      res,
+      next
+    );
+
+    expect(res.status).toHaveBeenCalledWith(502);
+    expect((res as unknown as { json: jest.Mock }).json).toHaveBeenCalledWith({
+      error: "bad gateway",
+      code: "UPSTREAM_ERROR",
     });
   });
 

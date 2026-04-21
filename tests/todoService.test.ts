@@ -1,5 +1,9 @@
 import { isHttpError } from "http-errors";
-import { createTodoService, type TodoRepository } from "../src/services/todoService";
+import {
+  createTodoService,
+  getDefaultTodoService,
+  type TodoRepository,
+} from "../src/services/todoService";
 import type { Todo } from "../src/models/todo";
 
 function makeTodo(overrides: Partial<Todo> = {}): Todo {
@@ -13,6 +17,14 @@ function makeTodo(overrides: Partial<Todo> = {}): Todo {
     ...overrides,
   };
 }
+
+describe("getDefaultTodoService", () => {
+  it("returns a service wired to the repository factory", () => {
+    const s = getDefaultTodoService();
+    expect(s).toHaveProperty("createTodo");
+    expect(s).toHaveProperty("getTodos");
+  });
+});
 
 describe("todoService", () => {
   let repo: jest.Mocked<TodoRepository>;
@@ -30,76 +42,92 @@ describe("todoService", () => {
   });
 
   describe("createTodo", () => {
-    it("creates a todo with trimmed title", () => {
-      const todo = service.createTodo({ title: "  Buy milk  " });
+    it("creates a todo with trimmed title", async () => {
+      const saved = makeTodo({ title: "Buy milk" });
+      repo.add.mockResolvedValue(saved);
+
+      const todo = await service.createTodo({ title: "  Buy milk  " });
       expect(todo.title).toBe("Buy milk");
       expect(todo.completed).toBe(false);
       expect(todo.id).toBeDefined();
-      expect(repo.add).toHaveBeenCalledWith(todo);
+      expect(repo.add).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Buy milk" })
+      );
     });
 
-    it("throws 400 when title is empty string", () => {
-      expect(() => service.createTodo({ title: "" })).toThrow("Title cannot be empty");
+    it("throws 400 when title is empty string", async () => {
+      await expect(service.createTodo({ title: "" })).rejects.toThrow("Title cannot be empty");
       expect(repo.add).not.toHaveBeenCalled();
     });
 
-    it("throws 400 when title is undefined", () => {
-      expect(() =>
+    it("throws 400 when title is undefined", async () => {
+      await expect(
         service.createTodo({ title: undefined as unknown as string })
-      ).toThrow("Title is required");
+      ).rejects.toThrow("Title is required");
     });
 
-    it("throws 400 when title is whitespace only", () => {
-      expect(() => service.createTodo({ title: "   " })).toThrow("Title cannot be empty");
+    it("throws 400 when title is whitespace only", async () => {
+      await expect(service.createTodo({ title: "   " })).rejects.toThrow(
+        "Title cannot be empty"
+      );
     });
 
-    it("stores optional description trimmed", () => {
-      const todo = service.createTodo({
+    it("stores optional description trimmed", async () => {
+      const saved = makeTodo({ title: "A", description: "notes" });
+      repo.add.mockResolvedValue(saved);
+
+      const todo = await service.createTodo({
         title: "A",
         description: "  notes  ",
       });
       expect(todo.description).toBe("notes");
     });
 
-    it("omits description when empty after trim", () => {
-      const todo = service.createTodo({ title: "A", description: "   " });
+    it("omits description when empty after trim", async () => {
+      const saved = makeTodo({ title: "A" });
+      repo.add.mockResolvedValue(saved);
+
+      const todo = await service.createTodo({ title: "A", description: "   " });
       expect(todo.description).toBeUndefined();
     });
 
-    it("honors completed on create", () => {
-      const todo = service.createTodo({ title: "A", completed: true });
+    it("honors completed on create", async () => {
+      const saved = makeTodo({ title: "A", completed: true });
+      repo.add.mockResolvedValue(saved);
+
+      const todo = await service.createTodo({ title: "A", completed: true });
       expect(todo.completed).toBe(true);
     });
   });
 
   describe("getTodos", () => {
-    it("returns repository findAll result", () => {
+    it("returns repository findAll result", async () => {
       const list = [makeTodo()];
-      repo.findAll.mockReturnValue(list);
-      expect(service.getTodos()).toBe(list);
+      repo.findAll.mockResolvedValue(list);
+      expect(await service.getTodos()).toBe(list);
     });
   });
 
   describe("getTodoById", () => {
-    it("returns todo when found", () => {
+    it("returns todo when found", async () => {
       const todo = makeTodo();
-      repo.findById.mockReturnValue(todo);
-      expect(service.getTodoById("id-1")).toBe(todo);
+      repo.findById.mockResolvedValue(todo);
+      expect(await service.getTodoById("id-1")).toBe(todo);
     });
 
-    it("throws 404 when missing", () => {
-      repo.findById.mockReturnValue(undefined);
-      expect(() => service.getTodoById("missing")).toThrow("Todo not found");
+    it("throws 404 when missing", async () => {
+      repo.findById.mockResolvedValue(undefined);
+      await expect(service.getTodoById("missing")).rejects.toThrow("Todo not found");
     });
   });
 
   describe("updateTodo", () => {
-    it("merges fields and updates timestamps", () => {
+    it("merges fields and updates timestamps", async () => {
       const existing = makeTodo({ title: "Old" });
-      repo.findById.mockReturnValue(existing);
-      repo.update.mockImplementation((_id, t) => t as Todo);
+      repo.findById.mockResolvedValue(existing);
+      repo.update.mockImplementation(async (_id, t) => t as Todo);
 
-      const result = service.updateTodo("id-1", { title: " New " });
+      const result = await service.updateTodo("id-1", { title: " New " });
       expect(result.title).toBe("New");
       expect(repo.update).toHaveBeenCalled();
       expect(result.updatedAt.getTime()).toBeGreaterThanOrEqual(
@@ -107,81 +135,81 @@ describe("todoService", () => {
       );
     });
 
-    it("updates description and clears when blank", () => {
+    it("updates description and clears when blank", async () => {
       const existing = makeTodo({ description: "old" });
-      repo.findById.mockReturnValue(existing);
-      repo.update.mockImplementation((_id, t) => t as Todo);
+      repo.findById.mockResolvedValue(existing);
+      repo.update.mockImplementation(async (_id, t) => t as Todo);
 
-      const cleared = service.updateTodo("id-1", { description: "   " });
+      const cleared = await service.updateTodo("id-1", { description: "   " });
       expect(cleared.description).toBeUndefined();
 
       const next = makeTodo({ description: undefined });
-      repo.findById.mockReturnValue(next);
-      const withDesc = service.updateTodo("id-1", { description: " hi " });
+      repo.findById.mockResolvedValue(next);
+      const withDesc = await service.updateTodo("id-1", { description: " hi " });
       expect(withDesc.description).toBe("hi");
     });
 
-    it("preserves title and completed when omitted from payload", () => {
+    it("preserves title and completed when omitted from payload", async () => {
       const existing = makeTodo({
         title: "Keep",
         completed: false,
         description: "note",
       });
-      repo.findById.mockReturnValue(existing);
-      repo.update.mockImplementation((_id, t) => t as Todo);
+      repo.findById.mockResolvedValue(existing);
+      repo.update.mockImplementation(async (_id, t) => t as Todo);
 
-      const result = service.updateTodo("id-1", { completed: true });
+      const result = await service.updateTodo("id-1", { completed: true });
       expect(result.title).toBe("Keep");
       expect(result.completed).toBe(true);
       expect(result.description).toBe("note");
     });
 
-    it("throws 400 when title is empty string", () => {
-      repo.findById.mockReturnValue(makeTodo());
-      expect(() => service.updateTodo("id-1", { title: "" })).toThrow(
+    it("throws 400 when title is empty string", async () => {
+      repo.findById.mockResolvedValue(makeTodo());
+      await expect(service.updateTodo("id-1", { title: "" })).rejects.toThrow(
         "Title cannot be empty"
       );
     });
 
-    it("throws 400 when title is whitespace only", () => {
-      repo.findById.mockReturnValue(makeTodo());
-      expect(() => service.updateTodo("id-1", { title: "  " })).toThrow(
+    it("throws 400 when title is whitespace only", async () => {
+      repo.findById.mockResolvedValue(makeTodo());
+      await expect(service.updateTodo("id-1", { title: "  " })).rejects.toThrow(
         "Title cannot be empty"
       );
     });
 
-    it("throws 404 when todo missing", () => {
-      repo.findById.mockReturnValue(undefined);
-      expect(() => service.updateTodo("x", {})).toThrow("Todo not found");
+    it("throws 404 when todo missing", async () => {
+      repo.findById.mockResolvedValue(undefined);
+      await expect(service.updateTodo("x", {})).rejects.toThrow("Todo not found");
     });
 
-    it("throws 404 when repository update returns undefined", () => {
-      repo.findById.mockReturnValue(makeTodo());
-      repo.update.mockReturnValue(undefined);
-      expect(() => service.updateTodo("id-1", { completed: true })).toThrow(
+    it("throws 404 when repository update returns undefined", async () => {
+      repo.findById.mockResolvedValue(makeTodo());
+      repo.update.mockResolvedValue(undefined);
+      await expect(service.updateTodo("id-1", { completed: true })).rejects.toThrow(
         "Todo not found"
       );
     });
   });
 
   describe("deleteTodo", () => {
-    it("removes when present", () => {
-      repo.remove.mockReturnValue(true);
-      expect(() => service.deleteTodo("id-1")).not.toThrow();
+    it("removes when present", async () => {
+      repo.remove.mockResolvedValue(true);
+      await expect(service.deleteTodo("id-1")).resolves.toBeUndefined();
       expect(repo.remove).toHaveBeenCalledWith("id-1");
     });
 
-    it("throws 404 when missing", () => {
-      repo.remove.mockReturnValue(false);
-      expect(() => service.deleteTodo("missing")).toThrow("Todo not found");
+    it("throws 404 when missing", async () => {
+      repo.remove.mockResolvedValue(false);
+      await expect(service.deleteTodo("missing")).rejects.toThrow("Todo not found");
     });
   });
 
   describe("http error shape", () => {
-    it("uses http-errors status codes for validation", () => {
+    it("uses http-errors status codes for validation", async () => {
       let caught: unknown;
       try {
-        service.createTodo({ title: "" });
+        await service.createTodo({ title: "" });
       } catch (e) {
         caught = e;
       }

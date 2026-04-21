@@ -1,16 +1,42 @@
 /**
- * @jest-environment node
+ * Vitest integration suite: run twice via npm (STORAGE_MODE=IN_MEMORY | LOCAL_PROXY).
+ * STORAGE_MODE is read when modules load; set it in the test runner env.
  */
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import request from "supertest";
-import { createApp } from "../src/app";
-import { __clearForTests } from "../src/repository/inMemoryTodoRepository";
+import type { Application } from "express";
+import type { Server } from "node:http";
+import { startLocalStorageStub, stopLocalStorageStub } from "./helpers/localStorageStub";
+import { __clearInMemoryStoreForTests } from "../src/storage/InMemoryTodoRepository";
 
-describe("Todo API", () => {
-  beforeEach(() => {
-    __clearForTests();
+const storageMode = process.env.STORAGE_MODE?.toUpperCase() ?? "IN_MEMORY";
+
+describe(`Todo API (STORAGE_MODE=${storageMode})`, () => {
+  let app: Application;
+  let stubServer: Server | undefined;
+
+  beforeAll(async () => {
+    if (storageMode === "LOCAL_PROXY") {
+      const { server, baseUrl } = await startLocalStorageStub();
+      stubServer = server;
+      process.env.LOCAL_STORAGE_PROXY_BASE_URL = baseUrl;
+    }
+
+    const { createApp } = await import("../src/app");
+    app = createApp();
   });
 
-  const app = createApp();
+  afterAll(async () => {
+    if (stubServer) {
+      await stopLocalStorageStub(stubServer);
+    }
+  });
+
+  beforeEach(() => {
+    if (storageMode === "IN_MEMORY") {
+      __clearInMemoryStoreForTests();
+    }
+  });
 
   function expectTodoShape(body: Record<string, unknown>): void {
     expect(body).toMatchObject({
@@ -67,10 +93,7 @@ describe("Todo API", () => {
   });
 
   it("GET /todos/:id returns a todo", async () => {
-    const created = await request(app)
-      .post("/todos")
-      .send({ title: "One" })
-      .expect(201);
+    const created = await request(app).post("/todos").send({ title: "One" }).expect(201);
 
     const id = (created.body as { id: string }).id;
     const res = await request(app).get(`/todos/${id}`).expect(200);
@@ -86,10 +109,7 @@ describe("Todo API", () => {
   });
 
   it("PUT /todos/:id updates a todo", async () => {
-    const created = await request(app)
-      .post("/todos")
-      .send({ title: "Old" })
-      .expect(201);
+    const created = await request(app).post("/todos").send({ title: "Old" }).expect(201);
     const id = (created.body as { id: string }).id;
 
     const res = await request(app)
@@ -106,16 +126,10 @@ describe("Todo API", () => {
   });
 
   it("PUT /todos/:id returns 400 for empty title", async () => {
-    const created = await request(app)
-      .post("/todos")
-      .send({ title: "Ok" })
-      .expect(201);
+    const created = await request(app).post("/todos").send({ title: "Ok" }).expect(201);
     const id = (created.body as { id: string }).id;
 
-    const res = await request(app)
-      .put(`/todos/${id}`)
-      .send({ title: "   " })
-      .expect(400);
+    const res = await request(app).put(`/todos/${id}`).send({ title: "   " }).expect(400);
     expect(res.body).toEqual({ error: "Title cannot be empty" });
   });
 
@@ -128,10 +142,7 @@ describe("Todo API", () => {
   });
 
   it("DELETE /todos/:id removes a todo", async () => {
-    const created = await request(app)
-      .post("/todos")
-      .send({ title: "Gone" })
-      .expect(201);
+    const created = await request(app).post("/todos").send({ title: "Gone" }).expect(201);
     const id = (created.body as { id: string }).id;
 
     await request(app).delete(`/todos/${id}`).expect(204);

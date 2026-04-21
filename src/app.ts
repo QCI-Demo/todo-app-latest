@@ -1,7 +1,6 @@
 import express from "express";
 import swaggerUi from "swagger-ui-express";
-import { createTodoService } from "./services/todoService";
-import * as inMemoryTodoRepository from "./repository/inMemoryTodoRepository";
+import { getDefaultTodoService } from "./services/todoService";
 import { createTodoRouter } from "./routes/todoRoutes";
 import { errorHandler } from "./middleware/errorHandler";
 import { swaggerSpec } from "./swagger/swaggerSpec";
@@ -11,7 +10,7 @@ export function createApp() {
 
   app.use(express.json());
 
-  const todoService = createTodoService(inMemoryTodoRepository);
+  const todoService = getDefaultTodoService();
   app.use("/todos", createTodoRouter(todoService));
 
   if (process.env.NODE_ENV !== "production") {
