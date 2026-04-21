@@ -12,5 +12,5 @@ module.exports = {
   },
   plugins: ['@typescript-eslint'],
   extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended'],
-  ignorePatterns: ['dist/', 'node_modules/', 'coverage/', 'jest.config.js'],
+  ignorePatterns: ['dist/', 'node_modules/', 'coverage/', 'jest.config.js', 'jest.config.cjs'],
 };

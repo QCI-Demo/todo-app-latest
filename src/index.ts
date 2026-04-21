@@ -1,12 +1,8 @@
-export function scaffoldMessage(): string {
-  return 'Backend scaffold ready';
-}
+import { createApp } from "./app";
 
-export function main(): void {
-  console.log(scaffoldMessage());
-}
+const port = Number(process.env.PORT) || 3000;
+const app = createApp();
 
-/* istanbul ignore next: bootstrap when executed as entry script */
-if (require.main === module) {
-  main();
-}
+app.listen(port, () => {
+  console.log(`Server listening on port ${port}`);
+});
